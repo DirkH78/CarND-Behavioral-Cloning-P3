@@ -1,7 +1,8 @@
 import numpy as np
 import csv
-import cv2
+#import cv2
 import os
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
@@ -37,11 +38,11 @@ def generator(samples, batch_size=32):
                 current_path_center = './learn/IMG/' + filename_center
                 current_path_left = './learn/IMG/' + filename_left
                 current_path_right = './learn/IMG/' + filename_right
-                image_center = cv2.imread(current_path_center)
+                image_center = mpimg.imread(current_path_center)
                 images.append(image_center)
-                image_left = cv2.imread(current_path_left)
+                image_left = mpimg.imread(current_path_left)
                 images.append(image_left)
-                image_right = cv2.imread(current_path_right)
+                image_right = mpimg.imread(current_path_right)
                 images.append(image_right)
                 correction = 0.2 # this is a parameter to tune 
                 measurement = float(batch_sample[3])
@@ -66,13 +67,13 @@ validation_generator = generator(validation_samples, batch_size=32)
 # model definition
 model = Sequential()
 model.add(Lambda(lambda x: x / 255 - 0.5, input_shape=(160, 320, 3)))
-model.add(Cropping2D(cropping=((70,25),(2,2))))
-model.add(Convolution2D(24, 5, 5, activation="relu"))
-model.add(Convolution2D(36, 5, 5, activation="relu"))
-#model.add(Convolution2D(48, 5, 5, activation="relu"))
-model.add(Convolution2D(64, 5, 5, activation="relu"))
-#model.add(Convolution2D(64, 5, 5, activation="relu"))
-#model.add(Dropout(0.3))
+model.add(Cropping2D(cropping=((70,25),(0,0))))
+model.add(Convolution2D(24, 5, 5 ,subsample=(2,2), activation="relu"))
+model.add(Convolution2D(36, 5, 5 ,subsample=(2,2), activation="relu"))
+model.add(Convolution2D(48, 5, 5 ,subsample=(2,2), activation="relu"))
+model.add(Convolution2D(64, 3, 3, activation="relu"))
+model.add(Convolution2D(64, 3, 3, activation="relu"))
+model.add(Dropout(0.3))
 model.add(Flatten())
 model.add(Dense(100))
 model.add(Dense(50))
@@ -96,4 +97,4 @@ plt.xlabel('epoch')
 plt.legend(['training set', 'validation set'], loc='upper right')
 plt.show()
 
-model.save('model2.h5')
+model.save('model3.h5')
