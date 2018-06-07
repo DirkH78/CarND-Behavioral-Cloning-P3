@@ -17,8 +17,10 @@ with open('./learn/driving_log.csv') as csvfile:
     for line in reader:
         samples.append(line)
 
+#split train and validation samples from input
 train_samples, validation_samples = train_test_split(samples, test_size=0.2)
 
+# generator to reduce memory usage
 def generator(samples, batch_size=32):
     num_samples = len(samples)
     while 1: # Loop forever so the generator never terminates
@@ -29,6 +31,7 @@ def generator(samples, batch_size=32):
             images = []
             measurements = []
             for batch_sample in batch_samples:
+                # import pictures (central picture for ideal course and left/right pictures for recentering)
                 source_path_center = batch_sample[0]
                 source_path_left = batch_sample[1]
                 source_path_right = batch_sample[2]
@@ -44,6 +47,7 @@ def generator(samples, batch_size=32):
                 images.append(image_left)
                 image_right = mpimg.imread(current_path_right)
                 images.append(image_right)
+                # import steering wheel angle (center for ideal course / correction represents maneuver to steer back to center)
                 correction = 0.2 # this is a parameter to tune 
                 measurement = float(batch_sample[3])
                 measurements.append(measurement)
@@ -51,6 +55,7 @@ def generator(samples, batch_size=32):
                 measurements.append(measurement - correction)
                     
             augmented_images, augmented_measurements = [], []
+            # pictures are flipped and steer angles mirrored to enlarge training set and adapt to right curves
             for image, measurement in zip(images, measurements):
                 augmented_images.append(image)
                 augmented_measurements.append(measurement)
@@ -64,24 +69,25 @@ train_generator = generator(train_samples, batch_size=32)
 validation_generator = generator(validation_samples, batch_size=32)
 
 # model definition
+# implementation of NVIDIA model
 model = Sequential()
-model.add(Lambda(lambda x: x / 255 - 0.5, input_shape=(160, 320, 3)))
-model.add(Cropping2D(cropping=((70,25),(0,0))))
-model.add(Convolution2D(24, 5, 5 ,subsample=(2,2), activation="relu"))
-model.add(Convolution2D(36, 5, 5 ,subsample=(2,2), activation="relu"))
-model.add(Convolution2D(48, 5, 5 ,subsample=(2,2), activation="relu"))
-model.add(Convolution2D(64, 3, 3, activation="relu"))
-model.add(Convolution2D(64, 3, 3, activation="relu"))
-model.add(Dropout(0.5))
+model.add(Lambda(lambda x: x / 255 - 0.5, input_shape=(160, 320, 3))) # normalization
+model.add(Cropping2D(cropping=((70,25),(0,0)))) #cropping: only use relevant picture data
+model.add(Convolution2D(24, 5, 5 ,subsample=(2,2), activation="relu")) #convolution: depth: 24; kernel: 5x5; stride: 2
+model.add(Convolution2D(36, 5, 5 ,subsample=(2,2), activation="relu")) #convolution: depth: 36; kernel: 5x5; stride: 2
+model.add(Convolution2D(48, 5, 5 ,subsample=(2,2), activation="relu")) #convolution: depth: 48; kernel: 5x5; stride: 2
+model.add(Convolution2D(64, 3, 3, activation="relu")) #convolution: depth: 64; kernel: 3x3; stride: 1
+model.add(Convolution2D(64, 3, 3, activation="relu")) #convolution: depth: 64; kernel: 3x3; stride: 1
+model.add(Dropout(0.5)) #dropout to avoid over-fitting
 model.add(Flatten())
-model.add(Dense(100))
-model.add(Dense(50))
-model.add(Dense(10))
-model.add(Dense(1))
+model.add(Dense(100)) #fully connected: output: 100
+model.add(Dense(50)) #fully connected: output: 50
+model.add(Dense(10)) #fully connected: output: 10 (output of NVIDIA model)
+model.add(Dense(1)) #fully connected: output: 1 (for only controlling steering wheel angle)
 
-model.compile(optimizer='adam', loss='mse')
+model.compile(optimizer='adam', loss='mse') # use adam optimizer and MSE loss function
 
-# training
+# training with history output and generators / sample length increased due to augmentation and correction
 history_object = model.fit_generator(train_generator, samples_per_epoch= len(train_samples)*6, validation_data=validation_generator, nb_val_samples=len(validation_samples)*6, nb_epoch=3, verbose = 1)
 ### print the keys contained in the history object
 print(history_object.history.keys())
@@ -95,4 +101,5 @@ plt.xlabel('epoch')
 plt.legend(['training set', 'validation set'], loc='upper right')
 plt.show()
 
+#save model
 model.save('model.h5')
